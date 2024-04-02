@@ -1,0 +1,17 @@
+# 忽略所有 .log 文件
+*.log
+
+# 忽略 node_modules 目录
+/Models
+
+# 忽略特定文件
+# config.env
+
+# 忽略特定目录下的所有文件
+# temp/*
+
+# 忽略除某个文件外的所有文件（! 表示不忽略）
+# !/important.txt
+
+# 忽略指定目录下的所有 .txt 文件
+# docs/*.txt
