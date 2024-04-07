@@ -83,8 +83,8 @@ outputs = model(tv).logits.detach().cpu().numpy()
 # Convert input_ids to torch.long type
 input_ids = inputs['input_ids'].to(torch.long).cpu()
 
-input_embedding = model_wrapper.model.bert.embeddings(input_ids)
-output = torch.argmax(output).to(torch.long)
+input_embedding = model.bert.embeddings(input_ids)
+output = torch.argmax(output).to(torch.long).cpu()
 
 attributions, delta = ig.attribute(inputs=input_ids,target=output,return_convergence_delta=True)
 
