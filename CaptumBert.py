@@ -62,6 +62,28 @@ def compute_bert_outputs(model_bert, embedding_output, attention_mask=None, head
     outputs = (sequence_output, pooled_output,) + encoder_outputs[1:]  # add hidden_states and attentions if they are here
     return outputs  # sequence_output, pooled_output, (hidden_states), (attentions)    
 
+def construct_input_and_baseline(text):
+    
+    max_length = 510
+    baseline_token_id = tokenizer.pad_token_id 
+    sep_token_id = tokenizer.sep_token_id 
+    cls_token_id = tokenizer.cls_token_id 
+
+    text_ids = tokenizer.encode(text, max_length=max_length, truncation=True, add_special_tokens=False)
+   
+    input_ids = [cls_token_id] + text_ids + [sep_token_id]
+    token_list = tokenizer.convert_ids_to_tokens(input_ids)
+  
+
+    baseline_input_ids = [cls_token_id] + [baseline_token_id] * len(text_ids) + [sep_token_id]
+    return torch.tensor([input_ids], device='cpu'), torch.tensor([baseline_input_ids], device='cpu'), token_list
+
+text = 'This movie is superb'
+input_ids, baseline_input_ids, all_tokens = construct_input_and_baseline(text)
+
+print(f'original text: {input_ids}')
+print(f'baseline text: {baseline_input_ids}')
+
 
 class BertModelWrapper(nn.Module):
     
@@ -78,6 +100,8 @@ class BertModelWrapper(nn.Module):
 
 # %%
 bert_model_wrapper = BertModelWrapper(model)
+# model_input = model.bert.embeddings
+
 ig = IntegratedGradients(bert_model_wrapper)
 
 # accumalate couple samples in this array for visualization purposes
@@ -97,14 +121,20 @@ def interpret_sentence(model_wrapper, sentence, label=1):
     pred_ind = round(pred)
 
     # compute attributions and approximation delta using integrated gradients
-    attributions_ig, delta = ig.attribute(input_embedding, n_steps=500, return_convergence_delta=True)
+    input_ids, baseline_input_ids, all_tokens = construct_input_and_baseline(sentence)
+    attributions_ig, delta = ig.attribute(inputs= input_ids,
+                                    baselines= baseline_input_ids,
+                                    return_convergence_delta=True
+                                    )
+    
+    # attributions_ig, delta = ig.attribute(input_embedding, n_steps=500, return_convergence_delta=True)
 
     print('pred: ', pred_ind, '(', '%.2f' % pred, ')', ', delta: ', abs(delta))
     tokens = tokenizer.convert_ids_to_tokens(input_ids[0].numpy().tolist())
-    add_attributions_to_visualizer(attributions_ig, tokens, pred, pred_ind, label, delta, vis_data_records_ig)
+    add_attributions_to_visualizer(attributions_ig, tokens, pred, pred_ind, label, delta, vis_data_records_ig, sentence)
     
     
-def add_attributions_to_visualizer(attributions, tokens, pred, pred_ind, label, delta, vis_data_records):
+def add_attributions_to_visualizer(attributions, tokens, pred, pred_ind, label, delta, vis_data_records, text):
     attributions = attributions.sum(dim=2).squeeze(0)
     attributions = attributions / torch.norm(attributions)
     attributions = attributions.detach().numpy()
@@ -115,10 +145,11 @@ def add_attributions_to_visualizer(attributions, tokens, pred, pred_ind, label, 
                             pred,
                             pred_ind,
                             label,
-                            str(label),
+                            text,
                             attributions.sum(),       
                             tokens[:len(attributions)],
                             delta))    
+    
 
 # %%
 def generate_sentences(sentiment):
