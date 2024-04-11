@@ -45,11 +45,22 @@ imdb_data = load_imdb_data(data_dir, num_pos=1000, num_neg=1000)
 print(imdb_data.head())
 
 
+
 # %% Import sst2
 from datasets import load_dataset
 
 dataset = load_dataset("glue", "sst2")
 print(dataset)
+
+def replace_gender_keywords(sentence, gender_keywords):
+    for male, female in zip([" he ", " his ", " him ", " man ", " boy ", " male "], \
+                            [" she ", " her ", " her ", " woman ", " girl ", " female "]):
+        if male in sentence:
+            return sentence.replace(male, female)
+        elif female in sentence:
+            return sentence.replace(female, male)
+    return sentence
+
 
 
 # %%
@@ -61,7 +72,7 @@ gender_keywords = [" he ", " she ", " his ", " her ", " him ", " man ", " woman 
 gender_attributions_pos = {keyword: [] for keyword in gender_keywords}
 gender_attributions_neg = {keyword: [] for keyword in gender_keywords}
 
-    
+
 # 遍历数据集
 stop = 67349
 for example in dataset['train']:
@@ -315,6 +326,7 @@ for example in dataset['train']:
     gender_keywords = [" he ", " she ", " his ", " her ", " him ", " man ", " woman ", " boy ", " girl ", " male ", " female "]
     if any(keyword in input_text.lower() for keyword in gender_keywords)==False:
         continue # if not related to gender, then pass
+    
     inputs = tokenizer(input_text, return_tensors='pt', padding=True, truncation=True, max_length=512)
     input_ids = inputs['input_ids'].to(device)
     attention_mask = inputs['attention_mask'].to(device)
